@@ -1,0 +1,1 @@
+# CorelDrawCE77000
