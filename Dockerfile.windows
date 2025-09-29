@@ -1,0 +1,19 @@
+# Windows Server Core
+FROM mcr.microsoft.com/windows/servercore:ltsc2022
+
+SHELL ["powershell", "-Command", "$ErrorActionPreference = 'Stop';"]
+
+# Скачиваем и устанавливаем Python
+RUN Invoke-WebRequest -Uri "https://www.python.org/ftp/python/3.11.9/python-3.11.9-amd64.exe" -OutFile "C:\\python-install.exe"; `
+    Start-Process "C:\\python-install.exe" -ArgumentList '/quiet InstallAllUsers=1 PrependPath=1' -Wait; `
+    Remove-Item "C:\\python-install.exe"
+
+WORKDIR C:\app
+
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
+COPY . .
+
+COPY start.ps1 .
+CMD ["powershell", "-File", "start.ps1"]
