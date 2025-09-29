@@ -28,7 +28,7 @@ PATHS_TO_WATCH = [
 ]
 ERROR_LOG = r"C:\Program Files (x86)\Graphtec\Cutting Master 4\Temp\saLog.log"
 DESIGNS_DIR = r"C:\Users\Lenovo\Desktop\bronoskins"
-DJANGO_API = "https://coreldrawce77000.onrender.com/"
+DJANGO_API = "https://coreldrawce77000.onrender.com/events/"
 MEDIA_PREVIEWS = r"C:\Users\Lenovo\PyCharmMiscProject\media\previews"
 
 PRINTER = "Graphtec CE7000"
