@@ -22,7 +22,6 @@ import win32api
 from ctypes import windll
 import psutil
 
-# --- Настройки ---
 PATHS_TO_WATCH = [
     r"C:\Program Files (x86)\Graphtec\Cutting Master 4\Jobs and Settings\Jobs"
 ]
@@ -32,9 +31,9 @@ DJANGO_API = "https://coreldrawce77000.onrender.com/events/"
 MEDIA_PREVIEWS = r"C:\Users\Lenovo\PyCharmMiscProject\media\previews"
 
 PRINTER = "Graphtec CE7000"
+print(DJANGO_API, 'TEST')
 USER = getpass.getuser()
 
-# --- Новые настройки для скриншотов Cutting Master 4 ---
 ENABLE_CUTTING_MASTER_SCREENSHOT = True  # Включить скриншоты Cutting Master 4
 CUTTING_MASTER_WINDOW_TITLES = [  # Возможные заголовки окон Cutting Master
     "cutting master",
@@ -113,7 +112,6 @@ def find_cutting_master_window():
     print(f"[CM_WINDOW]   • Окно свернуто")
     print(f"[CM_WINDOW]   • Другое название окна")
 
-    # Показываем все видимые окна для отладки
     all_windows = []
     win32gui.EnumWindows(enum_windows_callback, all_windows)
     visible_windows = [(hwnd, text) for hwnd, text in all_windows if text and len(text.strip()) > 0]
@@ -1180,10 +1178,16 @@ def copy_to_media(src_path, title):
     return None
 
 
+sent_titles = set()  # глобальный set для уникальных событий
+
 def send_event(title, status, job_file_path=None):
-    """
-    Отправляет событие в Django API с улучшенной обработкой и скриншотом Cutting Master 4
-    """
+    global sent_titles
+
+    if title in sent_titles:
+        print(f"[SEND_EVENT] ⚠️ Дубликат пропущен: '{title}'")
+        return
+    sent_titles.add(title)
+
     print(f"\n[SEND_EVENT] =====================")
     print(f"[SEND_EVENT] Обрабатываю событие: '{title}' - {status}")
     if job_file_path:
@@ -1191,7 +1195,7 @@ def send_event(title, status, job_file_path=None):
 
     ts = datetime.now(timezone.utc).isoformat()
 
-    # Определяем время создания job файла
+    # Время создания job файла
     job_creation_time = time.time()
     if job_file_path and os.path.exists(job_file_path):
         try:
@@ -1200,42 +1204,31 @@ def send_event(title, status, job_file_path=None):
         except:
             pass
 
-    # НОВОЕ: Создаем скриншот Cutting Master 4 в момент создания/изменения job
+    # Скриншот Cutting Master 4
     cutting_master_screenshot_path = None
     if ENABLE_CUTTING_MASTER_SCREENSHOT:
-        # Делаем скриншот для CREATED и MODIFIED событий
         print(f"[SEND_EVENT] 📸 Создание скриншота Cutting Master 4...")
         cutting_master_screenshot_path = capture_cutting_master_screenshot(title)
 
-    # Расширенный поиск дизайн-файла
+    # Поиск дизайн-файла
     design_file = find_design_file_with_retry(title, job_file_path, job_creation_time)
 
     preview_rel = None
     preview_full = None
 
-    # Приоритет превью:
-    # 1. Скриншот Cutting Master 4 (наивысший приоритет)
-    # 2. Найденный дизайн-файл
-    # 3. Placeholder для новых макетов
-
     if cutting_master_screenshot_path and os.path.exists(cutting_master_screenshot_path):
-        print(f"[SEND_EVENT] 📸 Используется скриншот Cutting Master 4 как основное превью")
         preview_rel = f"previews/{os.path.basename(cutting_master_screenshot_path)}"
         preview_full = cutting_master_screenshot_path
     elif design_file:
-        print(f"[SEND_EVENT] 🎨 Используется найденный дизайн-файл как превью")
         preview_rel = copy_to_media(design_file, title)
         if preview_rel:
             preview_full = os.path.join(MEDIA_PREVIEWS, os.path.basename(preview_rel))
     else:
-        # Создаем placeholder для новых макетов
-        print(f"[SEND_EVENT] 🆕 Создаю placeholder для нового макета")
         placeholder_filename = create_placeholder_preview(title, "Новый макет - файл не найден")
         if placeholder_filename:
             preview_rel = f"previews/{placeholder_filename}"
             preview_full = os.path.join(MEDIA_PREVIEWS, placeholder_filename)
 
-    # Определяем источник превью для дополнительной информации
     preview_source = "unknown"
     if cutting_master_screenshot_path and os.path.exists(cutting_master_screenshot_path):
         preview_source = "cutting_master_screenshot"
@@ -1249,10 +1242,9 @@ def send_event(title, status, job_file_path=None):
         "created_at": ts,
         "plotter": PRINTER,
         "status": status,
-        "is_new_design": design_file is None,  # Флаг нового дизайна
-        "preview_source": preview_source,  # НОВОЕ: Источник превью
+        "is_new_design": design_file is None,
+        "preview_source": preview_source,
         "has_cutting_master_screenshot": cutting_master_screenshot_path is not None,
-        # НОВОЕ: Флаг наличия скриншота CM4
     }
 
     print(f"[SEND_EVENT] Payload: {payload}")
@@ -1279,6 +1271,7 @@ def send_event(title, status, job_file_path=None):
     finally:
         if files and "preview" in files:
             files["preview"].close()
+
 
 
 def delayed_retry_search(title, job_file_path, status, delay):

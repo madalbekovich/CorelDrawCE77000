@@ -67,7 +67,7 @@ from PIL import Image, EpsImagePlugin
 import io, os
 import subprocess
 
-# Путь к Ghostscript
+######################## Путь к Ghostscript ######################################
 EpsImagePlugin.gs_windows_binary = r"C:\Program Files\gs\gs10.06.0\bin\gswin64c.exe"
 
 class EventsHandler(models.Model):
